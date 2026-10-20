@@ -1,6 +1,3 @@
-### `app/schemas/gathering.py`
-
-
 from datetime import datetime
 
 from pydantic import BaseModel, ConfigDict, Field
@@ -40,6 +37,7 @@ class GatheringPreferenceCreate(BaseModel):
     allergies: list[str] = Field(default_factory=list, max_length=50)
     dietary_restrictions: list[str] = Field(default_factory=list, max_length=50)
     dislikes: list[str] = Field(default_factory=list, max_length=50)
+    notes: str | None = Field(default=None, max_length=300)
 
 
 class GatheringPreferenceResponse(BaseModel):
@@ -48,6 +46,26 @@ class GatheringPreferenceResponse(BaseModel):
     id: int
     event_id: int
     user_id: int
+    username: str | None = None
     allergies: list[str]
     dietary_restrictions: list[str]
     dislikes: list[str]
+    notes: str | None = None
+    created_at: datetime | None = None
+
+
+class GatheringMenuItemCreate(BaseModel):
+    name: str = Field(min_length=2, max_length=120)
+    category: str = Field(default="dish", max_length=50)
+    assigned_user_id: int | None = None
+
+
+class GatheringMenuItemResponse(BaseModel):
+    id: int
+    event_id: int
+    name: str
+    category: str
+    assigned_user_id: int | None
+    assigned_username: str | None = None
+    created_by: int
+    created_at: datetime

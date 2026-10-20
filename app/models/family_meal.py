@@ -1,4 +1,3 @@
-
 from datetime import datetime
 
 from sqlalchemy import (
@@ -6,7 +5,9 @@ from sqlalchemy import (
     DateTime,
     ForeignKey,
     Integer,
+    JSON,
     String,
+    Text,
     func,
 )
 from sqlalchemy.orm import Mapped, mapped_column
@@ -36,8 +37,20 @@ class FamilyMeal(Base):
     )
 
     description: Mapped[str | None] = mapped_column(
-        String(255),
+        String(500),
         nullable=True,
+    )
+
+    ingredients: Mapped[list[str]] = mapped_column(
+        JSON,
+        default=list,
+        nullable=False,
+    )
+
+    instructions: Mapped[str] = mapped_column(
+        Text,
+        default="",
+        nullable=False,
     )
 
     is_active: Mapped[bool] = mapped_column(
@@ -51,3 +64,7 @@ class FamilyMeal(Base):
         server_default=func.now(),
         nullable=False,
     )
+
+
+# Alias so routes importing either `Meal` or `FamilyMeal` work cleanly.
+Meal = FamilyMeal

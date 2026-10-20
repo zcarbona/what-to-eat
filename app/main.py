@@ -1,9 +1,8 @@
 """FastAPI application entry point.
 
-Registers the routers whose models and schemas currently import cleanly
-(auth and groups). The family-meal, food-decision and gathering routers are
-not mounted yet: their modules reference models/fields that do not exist
-(see app/api/routes/{family_meals,food_decisions,gatherings}.py).
+Registers the auth, groups, family-meals, food-decisions, gatherings, and
+notifications routers and ensures all SQLAlchemy models are registered on
+Base.metadata before init_db() runs.
 """
 
 import os
@@ -15,9 +14,27 @@ from fastapi.middleware.cors import CORSMiddleware
 from app.core.database import close_db, init_db
 
 # Import models so their tables are registered on Base.metadata.
-from app.models import user, group, group_membership, invitation  # noqa: F401
+from app.models import (  # noqa: F401
+    audit_log,
+    family_meal,
+    food_decision,
+    gathering,
+    group,
+    group_membership,
+    invitation,
+    notification,
+    responsibility,
+    user,
+)
 
-from app.api.routes import auth, groups
+from app.api.routes import (
+    auth,
+    family_meals,
+    food_decisions,
+    gatherings,
+    groups,
+    notifications,
+)
 
 
 @asynccontextmanager
@@ -45,6 +62,10 @@ app.add_middleware(
 
 app.include_router(auth.router)
 app.include_router(groups.router)
+app.include_router(family_meals.router)
+app.include_router(food_decisions.router)
+app.include_router(gatherings.router)
+app.include_router(notifications.router)
 
 
 @app.get("/health", tags=["health"])

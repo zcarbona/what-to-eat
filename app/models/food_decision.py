@@ -1,11 +1,11 @@
-
 import enum
-from datetime import datetime
+from datetime import date, datetime
 
 from sqlalchemy import (
+    Date,
     DateTime,
-    Enum,
     ForeignKey,
+    Integer,
     String,
     UniqueConstraint,
     func,
@@ -16,33 +16,68 @@ from app.models.base import Base
 
 
 class DecisionRoundStatus(str, enum.Enum):
-    OPEN = "open"
-    COMPLETED = "completed"
-    CANCELLED = "cancelled"
+    OPEN = "OPEN"
+    COMPLETED = "COMPLETED"
+    CANCELLED = "CANCELLED"
 
 
 class DecisionRound(Base):
     __tablename__ = "decision_rounds"
 
-    id: Mapped[int] = mapped_column(primary_key=True)
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, index=True)
 
     group_id: Mapped[int] = mapped_column(
-        ForeignKey("groups.id"),
+        ForeignKey("groups.id", ondelete="CASCADE"),
         nullable=False,
+        index=True,
     )
 
-    created_by: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
-        nullable=False,
+    title: Mapped[str | None] = mapped_column(
+        String(120),
+        nullable=True,
     )
 
-    status: Mapped[DecisionRoundStatus] = mapped_column(
-        Enum(DecisionRoundStatus),
-        default=DecisionRoundStatus.OPEN,
-        nullable=False,
+    created_by: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Optional scheduled date for turn-based family meal rounds
+    scheduled_date: Mapped[date | None] = mapped_column(
+        Date,
+        nullable=True,
+        index=True,
+    )
+
+    # Optional assigned member whose turn it is to choose
+    assigned_user_id: Mapped[int | None] = mapped_column(
+        ForeignKey("users.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    # Optional selected family meal
+    selected_meal_id: Mapped[int | None] = mapped_column(
+        ForeignKey("family_meals.id", ondelete="SET NULL"),
+        nullable=True,
+    )
+
+    deadline_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
     )
 
     closes_at: Mapped[datetime | None] = mapped_column(
+        DateTime(timezone=True),
+        nullable=True,
+    )
+
+    status: Mapped[str] = mapped_column(
+        String(50),
+        default="OPEN",
+        nullable=False,
+    )
+
+    decided_at: Mapped[datetime | None] = mapped_column(
         DateTime(timezone=True),
         nullable=True,
     )
@@ -68,18 +103,23 @@ class FoodSubmission(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     round_id: Mapped[int] = mapped_column(
-        ForeignKey("decision_rounds.id"),
+        ForeignKey("decision_rounds.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     food_name: Mapped[str] = mapped_column(
         String(150),
         nullable=False,
+    )
+
+    note: Mapped[str | None] = mapped_column(
+        String(300),
+        nullable=True,
     )
 
     created_at: Mapped[datetime] = mapped_column(
@@ -95,13 +135,13 @@ class FoodDecisionResult(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     round_id: Mapped[int] = mapped_column(
-        ForeignKey("decision_rounds.id"),
+        ForeignKey("decision_rounds.id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
     )
 
     winning_submission_id: Mapped[int] = mapped_column(
-        ForeignKey("food_submissions.id"),
+        ForeignKey("food_submissions.id", ondelete="CASCADE"),
         nullable=False,
     )
 

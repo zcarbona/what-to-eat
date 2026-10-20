@@ -1,4 +1,3 @@
-
 import enum
 from datetime import datetime
 
@@ -29,17 +28,17 @@ class ShoppingResponsibility(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     group_id: Mapped[int] = mapped_column(
-        ForeignKey("groups.id"),
+        ForeignKey("groups.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     assigned_user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     meal_id: Mapped[int] = mapped_column(
-        ForeignKey("meals.id"),
+        ForeignKey("family_meals.id", ondelete="CASCADE"),
         nullable=False,
     )
 
@@ -67,12 +66,12 @@ class ResponsibilityReport(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     responsibility_id: Mapped[int] = mapped_column(
-        ForeignKey("shopping_responsibilities.id"),
+        ForeignKey("shopping_responsibilities.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     reported_by: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
 
@@ -82,7 +81,7 @@ class ResponsibilityReport(Base):
     )
 
     confirmed_by: Mapped[int | None] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="SET NULL"),
         nullable=True,
     )
 
@@ -104,17 +103,17 @@ class MemberRestriction(Base):
     id: Mapped[int] = mapped_column(primary_key=True)
 
     group_id: Mapped[int] = mapped_column(
-        ForeignKey("groups.id"),
+        ForeignKey("groups.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     user_id: Mapped[int] = mapped_column(
-        ForeignKey("users.id"),
+        ForeignKey("users.id", ondelete="CASCADE"),
         nullable=False,
     )
 
     report_id: Mapped[int] = mapped_column(
-        ForeignKey("responsibility_reports.id"),
+        ForeignKey("responsibility_reports.id", ondelete="CASCADE"),
         unique=True,
         nullable=False,
     )

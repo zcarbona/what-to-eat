@@ -1,17 +1,42 @@
 import { useState } from 'react'
-import { Link, useNavigate, useParams } from 'react-router-dom'
+import { Link, useNavigate, useParams, useSearchParams } from 'react-router-dom'
+import { DecisionRoundsPanel } from '../components/decisions/DecisionRoundsPanel'
+import { GatheringsPanel } from '../components/gatherings/GatheringsPanel'
 import { EditGroupDialog } from '../components/groups/EditGroupDialog'
 import { GroupTypeIcon } from '../components/groups/GroupList'
 import { MemberList } from '../components/groups/MemberList'
 import { InvitePanel } from '../components/invitations/InvitePanel'
+import { FamilyMealsPanel } from '../components/meals/FamilyMealsPanel'
 import { ConfirmDialog } from '../components/ui/Dialog'
-import { Icon } from '../components/ui/Icon'
+import { Icon, type IconName } from '../components/ui/Icon'
 import { BackLink, EmptyState, ErrorState, ListSkeleton } from '../components/ui/States'
 import { useAsync, useTitle } from '../hooks/useAsync'
 import { ApiError, api } from '../lib/api'
 import { useAuth } from '../lib/auth'
 import { formatDate, groupTypeLabel } from '../lib/format'
 import { useToast } from '../lib/toast'
+import type { GroupType } from '../types/api'
+
+type GroupTab = 'decisions' | 'meals' | 'gatherings' | 'members'
+
+function defaultTabForType(type: GroupType): GroupTab {
+  switch (type) {
+    case 'family':
+      return 'meals'
+    case 'gathering':
+      return 'gatherings'
+    case 'friends':
+    default:
+      return 'decisions'
+  }
+}
+
+const TABS: { id: GroupTab; label: string; icon: IconName }[] = [
+  { id: 'decisions', label: 'Decisions', icon: 'sparkles' },
+  { id: 'meals', label: 'Meals & Shop', icon: 'book' },
+  { id: 'gatherings', label: 'Gatherings', icon: 'calendar' },
+  { id: 'members', label: 'Members & Invite', icon: 'users' },
+]
 
 export function GroupDetailPage() {
   const { groupId: raw } = useParams()
@@ -22,7 +47,14 @@ export function GroupDetailPage() {
     return (
       <div className="page">
         <BackLink to="/groups">Groups</BackLink>
-        <EmptyState title="Group not found" action={<Link to="/groups" className="btn">Back to groups</Link>}>
+        <EmptyState
+          title="Group not found"
+          action={
+            <Link to="/groups" className="btn">
+              Back to groups
+            </Link>
+          }
+        >
           This link doesn't point to a valid group.
         </EmptyState>
       </div>
@@ -35,10 +67,14 @@ function GroupDetail({ groupId }: { groupId: number }) {
   const { user } = useAuth()
   const { notify } = useToast()
   const navigate = useNavigate()
+  const [searchParams, setSearchParams] = useSearchParams()
 
   const state = useAsync(
     async () => {
-      const [group, members] = await Promise.all([api.getGroup(groupId), api.listMembers(groupId)])
+      const [group, members] = await Promise.all([
+        api.getGroup(groupId),
+        api.listMembers(groupId),
+      ])
       return { group, members }
     },
     [groupId],
@@ -100,6 +136,16 @@ function GroupDetail({ groupId }: { groupId: number }) {
   const adminCount = members.filter((m) => m.role === 'admin').length
   const lastAdmin = isAdmin && adminCount <= 1
 
+  const rawTab = searchParams.get('tab') as GroupTab | null
+  const activeTab: GroupTab =
+    rawTab && TABS.some((t) => t.id === rawTab)
+      ? rawTab
+      : defaultTabForType(group.group_type)
+
+  function selectTab(tab: GroupTab) {
+    setSearchParams({ tab }, { replace: true })
+  }
+
   async function leave() {
     if (leaveBusy) return
     setLeaveBusy(true)
@@ -125,6 +171,9 @@ function GroupDetail({ groupId }: { groupId: number }) {
               <h1 style={{ overflowWrap: 'anywhere' }}>{group.name}</h1>
               <div className="row wrap" style={{ gap: 6, marginTop: 4 }}>
                 <span className="badge">{groupTypeLabel(group.group_type)}</span>
+                <span className="badge">
+                  {members.length} {members.length === 1 ? 'member' : 'members'}
+                </span>
                 {isAdmin ? (
                   <span className="badge badge-sage">
                     <Icon name="shield" size={12} /> You're an admin
@@ -135,67 +184,115 @@ function GroupDetail({ groupId }: { groupId: number }) {
               </div>
             </div>
           </div>
-          {isAdmin && (
-            <button type="button" className="btn" onClick={() => setEditing(true)} id="edit-group">
-              <Icon name="pencil" size={16} /> Edit
-            </button>
-          )}
-        </div>
-      </div>
-
-      <div className="grid-2">
-        <section className="section" aria-labelledby="members-heading">
-          <div className="section-head">
-            <h2 id="members-heading">Members</h2>
-            <span className="muted small">
-              {members.length} {members.length === 1 ? 'person' : 'people'}
-            </span>
+          <div className="row wrap">
+            {isAdmin && (
+              <button
+                type="button"
+                className="btn"
+                onClick={() => setEditing(true)}
+                id="edit-group"
+              >
+                <Icon name="pencil" size={16} /> Edit
+              </button>
+            )}
           </div>
-          <MemberList
-            groupId={groupId}
-            members={members}
-            currentUserId={user.id}
-            isAdmin={isAdmin}
-            onChanged={state.reload}
-          />
-        </section>
-
-        <div className="stack">
-          {isAdmin && <InvitePanel groupId={groupId} groupName={group.name} />}
-
-          <section className="card card-pad section" aria-labelledby="about-heading">
-            <h2 id="about-heading">About</h2>
-            <dl className="kv">
-              <dt>Group ID</dt>
-              <dd>{group.id}</dd>
-              <dt>Type</dt>
-              <dd>{groupTypeLabel(group.group_type)}</dd>
-              <dt>Created</dt>
-              <dd>{formatDate(group.created_at)}</dd>
-            </dl>
-          </section>
-
-          <section className="card card-pad section" aria-labelledby="leave-heading">
-            <h2 id="leave-heading">Leave group</h2>
-            <p className="muted small">
-              {lastAdmin
-                ? "You're the only admin. Make someone else an admin before you leave."
-                : "You'll lose access until someone invites you again."}
-            </p>
-            <button
-              type="button"
-              className="btn btn-danger-outline"
-              onClick={() => {
-                setLeaveError(null)
-                setLeaving(true)
-              }}
-              id="leave-group"
-            >
-              <Icon name="logout" size={18} /> Leave group
-            </button>
-          </section>
         </div>
       </div>
+
+      {/* Group Feature Tabs */}
+      <nav className="group-tabs" aria-label="Group sections">
+        {TABS.map((t) => (
+          <button
+            key={t.id}
+            type="button"
+            className={`group-tab ${activeTab === t.id ? 'active' : ''}`}
+            onClick={() => selectTab(t.id)}
+            aria-current={activeTab === t.id ? 'page' : undefined}
+          >
+            <Icon name={t.icon} size={17} />
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </nav>
+
+      {activeTab === 'decisions' && (
+        <DecisionRoundsPanel
+          groupId={groupId}
+          groupType={group.group_type}
+          members={members}
+          currentUserId={user.id}
+          isAdmin={isAdmin}
+        />
+      )}
+
+      {activeTab === 'meals' && (
+        <FamilyMealsPanel
+          groupId={groupId}
+          members={members}
+          currentUserId={user.id}
+          isAdmin={isAdmin}
+        />
+      )}
+
+      {activeTab === 'gatherings' && (
+        <GatheringsPanel groupId={groupId} isAdmin={isAdmin} />
+      )}
+
+      {activeTab === 'members' && (
+        <div className="grid-2">
+          <section className="section" aria-labelledby="members-heading">
+            <div className="section-head">
+              <h2 id="members-heading">Members</h2>
+              <span className="muted small">
+                {members.length} {members.length === 1 ? 'person' : 'people'}
+              </span>
+            </div>
+            <MemberList
+              groupId={groupId}
+              members={members}
+              currentUserId={user.id}
+              isAdmin={isAdmin}
+              onChanged={state.reload}
+            />
+          </section>
+
+          <div className="stack">
+            {isAdmin && <InvitePanel groupId={groupId} groupName={group.name} />}
+
+            <section className="card card-pad section" aria-labelledby="about-heading">
+              <h2 id="about-heading">About</h2>
+              <dl className="kv">
+                <dt>Group ID</dt>
+                <dd>{group.id}</dd>
+                <dt>Type</dt>
+                <dd>{groupTypeLabel(group.group_type)}</dd>
+                <dt>Created</dt>
+                <dd>{formatDate(group.created_at)}</dd>
+              </dl>
+            </section>
+
+            <section className="card card-pad section" aria-labelledby="leave-heading">
+              <h2 id="leave-heading">Leave group</h2>
+              <p className="muted small">
+                {lastAdmin
+                  ? "You're the only admin. Make someone else an admin before you leave."
+                  : "You'll lose access until someone invites you again."}
+              </p>
+              <button
+                type="button"
+                className="btn btn-danger-outline"
+                onClick={() => {
+                  setLeaveError(null)
+                  setLeaving(true)
+                }}
+                id="leave-group"
+              >
+                <Icon name="logout" size={18} /> Leave group
+              </button>
+            </section>
+          </div>
+        </div>
+      )}
 
       {isAdmin && (
         <EditGroupDialog

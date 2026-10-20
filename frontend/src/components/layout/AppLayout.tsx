@@ -1,10 +1,10 @@
-import { NavLink, Outlet, Link } from 'react-router-dom'
+import { Link, NavLink, Outlet, useLocation } from 'react-router-dom'
+import { useAsync, useKeyboardAwareness } from '../../hooks/useAsync'
+import { api } from '../../lib/api'
 import { useAuth } from '../../lib/auth'
 import { initials } from '../../lib/format'
-import { useKeyboardAwareness } from '../../hooks/useAsync'
 import { Icon, type IconName } from '../ui/Icon'
 
-// Only destinations backed by working backend features.
 const NAV: { to: string; label: string; icon: IconName; end?: boolean }[] = [
   { to: '/', label: 'Home', icon: 'home', end: true },
   { to: '/groups', label: 'Groups', icon: 'users' },
@@ -14,7 +14,14 @@ const NAV: { to: string; label: string; icon: IconName; end?: boolean }[] = [
 
 export function AppLayout() {
   const { user } = useAuth()
+  const location = useLocation()
   useKeyboardAwareness()
+
+  const notifications = useAsync(
+    () => api.listNotifications().catch(() => []),
+    [location.pathname],
+  )
+  const unreadCount = (notifications.data ?? []).filter((n) => !n.is_read).length
 
   return (
     <>
@@ -36,14 +43,38 @@ export function AppLayout() {
             ))}
           </nav>
 
-          {user && (
-            <Link to="/profile" className="header-user" style={{ color: 'inherit', textDecoration: 'none' }}>
-              <span className="avatar" aria-hidden="true">
-                {initials(user.username)}
-              </span>
-              <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>{user.username}</span>
+          <div className="row" style={{ marginLeft: 'auto', gap: 8 }}>
+            <Link
+              to="/notifications"
+              className="btn btn-ghost btn-icon"
+              style={{ position: 'relative' }}
+              aria-label={
+                unreadCount > 0
+                  ? `Notifications (${unreadCount} unread)`
+                  : 'Notifications'
+              }
+            >
+              <Icon name="bell" size={20} />
+              {unreadCount > 0 && (
+                <span className="notif-dot" aria-hidden="true">
+                  {unreadCount > 9 ? '9+' : unreadCount}
+                </span>
+              )}
             </Link>
-          )}
+
+            {user && (
+              <Link
+                to="/profile"
+                className="header-user"
+                style={{ color: 'inherit', textDecoration: 'none', marginLeft: 0 }}
+              >
+                <span className="avatar" aria-hidden="true">
+                  {initials(user.username)}
+                </span>
+                <span style={{ fontWeight: 600, fontSize: '0.92rem' }}>{user.username}</span>
+              </Link>
+            )}
+          </div>
         </div>
       </header>
 
