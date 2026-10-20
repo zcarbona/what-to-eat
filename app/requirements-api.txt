@@ -1,0 +1,12 @@
+# Runtime dependencies actually imported by the FastAPI backend.
+# (app/requirements.txt is left untouched; it does not contain these.)
+fastapi>=0.115
+uvicorn[standard]>=0.30
+SQLAlchemy[asyncio]>=2.0.36
+aiosqlite>=0.20
+pydantic>=2.11
+email-validator>=2.1
+python-jose[cryptography]>=3.3
+passlib==1.7.4
+bcrypt==4.0.1
+python-multipart>=0.0.9
